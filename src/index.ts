@@ -9,8 +9,6 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 app.use('/*', cors());
 
-app.get('/', (c) => c.text('AI Agent Coding Backend is Running!'));
-
 // --- R2 Configuration Endpoints ---
 
 async function getConfig(env: Bindings) {
