@@ -1,0 +1,6 @@
+name = "ai-agent-coding"
+compatibility_date = "2024-04-01"
+
+[[r2_buckets]]
+binding = "vpsai"
+bucket_name = "vpsai"
