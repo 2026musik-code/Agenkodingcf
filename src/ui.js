@@ -588,8 +588,62 @@ function addMessage(role, content) {
     // Update State
     chatHistory.push({ role, content });
     addMessageToUI(role, content);
+    if (role === 'model') {
+        autoSaveFiles(content);
+    }
     if (role !== 'system') {
         saveCurrentChat();
+    }
+}
+
+async function autoSaveFiles(content) {
+    if (!currentRepo.owner || !currentRepo.repo) return;
+
+    // Regex to match code blocks and find 'filename:'
+    const codeBlockRegex = /```[\w]*\n([\s\S]*?)```/g;
+    let match;
+
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+        const code = match[1];
+        const lines = code.split('\n');
+        if (lines.length > 0) {
+            const firstLine = lines[0].trim();
+            // Check for filename pattern in comments: // filename: ..., # filename: ..., <!-- filename: ... -->
+            const filenameMatch = firstLine.match(/(?:\/\/|#|<!--)\s*filename:\s*([^\s-]+)(?:\s*-->)?/i);
+
+            if (filenameMatch && filenameMatch[1]) {
+                const filename = filenameMatch[1].trim();
+                // Remove the filename comment line from the content to save clean code
+                const cleanCode = lines.slice(1).join('\n');
+
+                addMessage('system', `<i class="fa-solid fa-spinner fa-spin"></i> Auto-saving <b>${filename}</b>...`);
+
+                try {
+                    const res = await fetch('/api/github/file', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            owner: currentRepo.owner,
+                            repo: currentRepo.repo,
+                            path: filename,
+                            content: cleanCode,
+                            message: `Auto-generated ${filename} by AI Agent`
+                        })
+                    });
+
+                    if (!res.ok) throw new Error((await res.json()).error);
+
+                    // Update success message (simple replace via DOM manipulation would be better, but appending works)
+                    addMessage('system', `<i class="fa-solid fa-check text-green-400"></i> Successfully auto-saved <b>${filename}</b>`);
+
+                    // Refresh file tree
+                    loadRepository(currentRepo.owner, currentRepo.repo);
+
+                } catch (e) {
+                    addMessage('system', `<i class="fa-solid fa-triangle-exclamation text-red-400"></i> Failed to auto-save <b>${filename}</b>: ${e.message}`);
+                }
+            }
+        }
     }
 }
 
