@@ -22,7 +22,6 @@ async function getConfig(env: Bindings) {
 app.get('/api/config', async (c) => {
   try {
     const config: any = await getConfig(c.env);
-    // Security: Only return masked keys
     return c.json({
         ferdevApiKey: config.ferdevApiKey ? '********' : '',
         githubToken: config.githubToken ? '********' : '',
@@ -139,31 +138,23 @@ app.post('/api/chat', async (c) => {
 
     prompt += `User Request: ${message}`;
 
-    // Call Ferdev API
+    // Call Ferdev API - CORRECT ENDPOINT: /ai/aicoding
     const encodedPrompt = encodeURIComponent(prompt);
-    // Limit prompt length to avoid 414 URI Too Long errors
+    // Limit prompt length
     if (encodedPrompt.length > 5000) {
-        return c.json({ error: 'Context too large for GET request. Please select fewer or smaller files.' }, 400);
+        return c.json({ error: 'Context too large. Please select fewer files.' }, 400);
     }
 
-    let targetUrl = `https://api.ferdev.my.id/ai/gemini?prompt=${encodedPrompt}&apikey=${apiKey}`;
+    let targetUrl = `https://api.ferdev.my.id/ai/aicoding?prompt=${encodedPrompt}&apikey=${apiKey}`;
 
     // Apply Proxy if configured
     if (proxyUrl && proxyUrl.trim() !== '') {
-        // Assume proxyUrl is like "https://proxy.com/?url="
         targetUrl = proxyUrl.trim() + encodeURIComponent(targetUrl);
     }
 
-    // Random Indonesian IP for spoofing
-    const spoofIp = `103.147.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
-
     // Headers logic
     const headers: any = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'X-Forwarded-For': spoofIp,
-        'Client-IP': spoofIp,
-        'CF-Connecting-IP': spoofIp,
-        'X-Real-IP': spoofIp
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     };
 
     if (!proxyUrl) {
@@ -173,17 +164,30 @@ app.post('/api/chat', async (c) => {
 
     const response = await fetch(targetUrl, { headers });
 
-    if (!response.ok) {
-        if (response.status === 403) {
-            return c.json({
-                error: 'AI API Error: 403 Forbidden. The API blocked the request.',
-                details: proxyUrl ? 'Your configured Proxy was blocked.' : 'IP Spoofing failed. Please find a working Indonesian Proxy URL (e.g., from a free proxy list) and enter it in Settings.'
-            }, 403);
-        }
-      return c.json({ error: `AI API Error: ${response.status}` }, response.status);
+    // Improved Error Handling: Try to read the JSON error message even if status is not OK
+    const responseText = await response.text();
+    let data;
+    try {
+        data = JSON.parse(responseText);
+    } catch (e) {
+        data = { message: responseText }; // Fallback to raw text
     }
 
-    const data = await response.json();
+    if (!response.ok) {
+        return c.json({
+            error: `AI API Error: ${response.status} ${response.statusText}`,
+            details: data.message || JSON.stringify(data)
+        }, response.status);
+    }
+
+    // If success: false is returned in 200 OK (some APIs do this)
+    if (data.success === false) {
+         return c.json({
+            error: `AI API returned failure: ${data.message}`,
+            details: data
+        }, 400);
+    }
+
     return c.json(data);
 
   } catch (e: any) {
