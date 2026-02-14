@@ -12,6 +12,7 @@ const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 const apiKeyInput = document.getElementById('apiKeyInput');
 const githubTokenInput = document.getElementById('githubTokenInput');
+const proxyUrlInput = document.getElementById('proxyUrlInput');
 
 const repoInput = document.getElementById('repoInput');
 const loadRepoBtn = document.getElementById('loadRepoBtn');
@@ -86,6 +87,7 @@ async function loadConfig() {
         const data = await res.json();
         if (data.ferdevApiKey) apiKeyInput.value = data.ferdevApiKey;
         if (data.githubToken) githubTokenInput.value = data.githubToken;
+        if (data.proxyUrl) proxyUrlInput.value = data.proxyUrl;
     } catch (e) {
         console.error('Failed to load config', e);
     }
@@ -94,6 +96,7 @@ async function loadConfig() {
 saveSettingsBtn.addEventListener('click', async () => {
     const ferdevApiKey = apiKeyInput.value;
     const githubToken = githubTokenInput.value;
+    const proxyUrl = proxyUrlInput.value;
 
     const originalText = saveSettingsBtn.textContent;
     saveSettingsBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
@@ -103,7 +106,7 @@ saveSettingsBtn.addEventListener('click', async () => {
         await fetch('/api/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ferdevApiKey, githubToken })
+            body: JSON.stringify({ ferdevApiKey, githubToken, proxyUrl })
         });
         toggleSettings(false);
         addMessage('system', 'Configuration saved successfully.');
