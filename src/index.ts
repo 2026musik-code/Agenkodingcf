@@ -145,17 +145,22 @@ app.post('/api/chat', async (c) => {
     }
     const url = `https://api.ferdev.my.id/ai/gemini?prompt=${encodedPrompt}&apikey=${apiKey}`;
 
+    // Attempt to spoof Origin/Referer to bypass potential hotlink protection
     const response = await fetch(url, {
         headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Referer': 'https://google.com',
-            'Origin': 'https://google.com'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://ferdev.my.id/',
+            'Origin': 'https://ferdev.my.id/'
         }
     });
 
     if (!response.ok) {
         if (response.status === 403) {
-            return c.json({ error: 'AI API Error: 403 Forbidden. This API may restrict access to Indonesian IPs. Since this Worker runs globally, you might be blocked.' }, 403);
+            // Detailed error for 403
+            return c.json({
+                error: 'AI API Error: 403 Forbidden. This API restricts access. Since Cloudflare Workers run globally, your IP might be blocked or detected as a bot.',
+                details: 'Tried spoofing Referer/Origin to ferdev.my.id. If this persists, try using a proxy.'
+            }, 403);
         }
       return c.json({ error: `AI API Error: ${response.status}` }, response.status);
     }
