@@ -213,7 +213,8 @@ async function loadHistoryList() {
     }
 }
 
-async function loadChatSession(id) {
+// Ensure these functions are globally available for inline onclick handlers
+window.loadChatSession = async function(id) {
     chatContainer.innerHTML = ''; // Clear UI
     chatHistory = []; // Clear local state
     currentSessionId = id;
@@ -248,7 +249,7 @@ async function loadChatSession(id) {
     }
 }
 
-async function deleteChat(e, id) {
+window.deleteChat = async function(e, id) {
     e.stopPropagation();
     if (!confirm('Delete this chat?')) return;
 
@@ -261,7 +262,7 @@ async function deleteChat(e, id) {
     } catch (e) {
         alert('Failed to delete');
     }
-}
+};
 
 function startNewChat() {
     currentSessionId = Date.now().toString();
