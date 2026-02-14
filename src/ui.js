@@ -1,6 +1,7 @@
 // State
 let selectedFiles = new Map();
 let currentRepo = { owner: '', repo: '' };
+let currentRepoFiles = [];
 let currentFile = { path: '', sha: '' };
 
 // DOM Elements
@@ -202,6 +203,7 @@ async function loadRepository(owner, repo) {
 
         const data = await res.json();
         currentRepo = { owner, repo };
+        currentRepoFiles = data.tree || [];
         renderFileTree(data.tree);
         addMessage('system', `Loaded repository: ${owner}/${repo}`);
         if (window.innerWidth < 768) toggleSidebar(false);
@@ -433,11 +435,17 @@ async function sendMessage() {
 
     try {
         const context = Array.from(selectedFiles.entries()).map(([path, content]) => ({ path, content }));
+        const fileTree = currentRepoFiles.map(f => f.path);
 
         const res = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, contextFiles: context })
+            body: JSON.stringify({
+                message,
+                contextFiles: context,
+                repo: currentRepo,
+                fileTree: fileTree
+            })
         });
 
         const data = await res.json();
