@@ -10,7 +10,7 @@ const mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
 const desktopSettingsBtn = document.getElementById('desktopSettingsBtn');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-const apiKeyInput = document.getElementById('apiKeyInput');
+// const apiKeyInput = document.getElementById('apiKeyInput'); // REMOVED
 const githubTokenInput = document.getElementById('githubTokenInput');
 const proxyUrlInput = document.getElementById('proxyUrlInput');
 
@@ -85,7 +85,7 @@ async function loadConfig() {
     try {
         const res = await fetch('/api/config');
         const data = await res.json();
-        if (data.ferdevApiKey) apiKeyInput.value = data.ferdevApiKey;
+        // if (data.ferdevApiKey) apiKeyInput.value = data.ferdevApiKey; // REMOVED
         if (data.githubToken) githubTokenInput.value = data.githubToken;
         if (data.proxyUrl) proxyUrlInput.value = data.proxyUrl;
     } catch (e) {
@@ -94,7 +94,7 @@ async function loadConfig() {
 }
 
 saveSettingsBtn.addEventListener('click', async () => {
-    const ferdevApiKey = apiKeyInput.value;
+    // const ferdevApiKey = apiKeyInput.value; // REMOVED
     const githubToken = githubTokenInput.value;
     const proxyUrl = proxyUrlInput.value;
 
@@ -106,7 +106,7 @@ saveSettingsBtn.addEventListener('click', async () => {
         await fetch('/api/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ferdevApiKey, githubToken, proxyUrl })
+            body: JSON.stringify({ githubToken, proxyUrl })
         });
         toggleSettings(false);
         addMessage('system', 'Configuration saved successfully.');
