@@ -154,12 +154,18 @@ app.post('/api/chat', async (c) => {
         targetUrl = proxyUrl.trim() + encodeURIComponent(targetUrl);
     }
 
+    // Random Indonesian IP for spoofing
+    const spoofIp = `103.147.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+
     // Headers logic
     const headers: any = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'X-Forwarded-For': spoofIp,
+        'Client-IP': spoofIp,
+        'CF-Connecting-IP': spoofIp,
+        'X-Real-IP': spoofIp
     };
 
-    // Only set Referer/Origin if NOT using a proxy (or if the proxy supports passing them, but standard fetch behavior changes)
     if (!proxyUrl) {
         headers['Referer'] = 'https://ferdev.my.id/';
         headers['Origin'] = 'https://ferdev.my.id/';
@@ -171,7 +177,7 @@ app.post('/api/chat', async (c) => {
         if (response.status === 403) {
             return c.json({
                 error: 'AI API Error: 403 Forbidden. The API blocked the request.',
-                details: proxyUrl ? 'Your configured Proxy was also blocked or failed.' : 'Try configuring a "Custom Proxy URL" in Settings to route through an Indonesian IP.'
+                details: proxyUrl ? 'Your configured Proxy was blocked.' : 'IP Spoofing failed. Please find a working Indonesian Proxy URL (e.g., from a free proxy list) and enter it in Settings.'
             }, 403);
         }
       return c.json({ error: `AI API Error: ${response.status}` }, response.status);
