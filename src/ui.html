@@ -2,7 +2,7 @@
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI Agent Coding</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -11,16 +11,22 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
     <style>
         /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
         .glass {
             background: rgba(31, 41, 55, 0.7);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
+        /* Mobile Specifics */
+        .mobile-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        .mobile-safe-top { padding-top: env(safe-area-inset-top); }
+
+        /* App-like transitions */
+        .page-transition { transition: transform 0.3s ease-in-out; }
     </style>
     <script>
         tailwind.config = {
@@ -38,16 +44,38 @@
         }
     </script>
 </head>
-<body class="bg-darker text-gray-200 font-sans h-screen flex overflow-hidden">
+<body class="bg-darker text-gray-200 font-sans h-screen flex flex-col md:flex-row overflow-hidden select-none touch-manipulation">
 
-    <!-- Sidebar -->
-    <aside class="w-80 bg-dark border-r border-gray-800 flex flex-col glass z-10">
-        <div class="p-4 border-b border-gray-800 flex justify-between items-center">
+    <!-- Mobile Header -->
+    <header class="md:hidden flex items-center justify-between p-4 glass border-b border-gray-800 z-50 mobile-safe-top">
+        <button id="mobileMenuBtn" class="text-gray-300 hover:text-white p-2">
+            <i class="fa-solid fa-bars text-xl"></i>
+        </button>
+        <h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
+            AI Agent
+        </h1>
+        <button id="mobileSettingsBtn" class="text-gray-300 hover:text-white p-2">
+            <i class="fa-solid fa-gear text-xl"></i>
+        </button>
+    </header>
+
+    <!-- Sidebar (Desktop & Mobile Drawer) -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 w-80 bg-dark/95 backdrop-blur-xl border-r border-gray-800 flex flex-col z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-300 md:static md:bg-dark md:glass">
+
+        <!-- Desktop Header -->
+        <div class="hidden md:flex p-4 border-b border-gray-800 justify-between items-center">
             <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
                 <i class="fa-solid fa-robot mr-2"></i>AI Agent
             </h1>
-            <button id="settingsBtn" class="text-gray-400 hover:text-white transition">
+            <button id="desktopSettingsBtn" class="text-gray-400 hover:text-white transition">
                 <i class="fa-solid fa-gear"></i>
+            </button>
+        </div>
+
+        <!-- Mobile Close Button -->
+        <div class="md:hidden p-4 flex justify-end mobile-safe-top">
+            <button id="closeSidebarBtn" class="text-gray-400 p-2">
+                <i class="fa-solid fa-xmark text-xl"></i>
             </button>
         </div>
 
@@ -55,51 +83,55 @@
         <div class="p-4 space-y-2">
             <label class="text-xs text-gray-500 uppercase font-semibold">Repository</label>
             <div class="flex space-x-2">
-                <input type="text" id="repoInput" placeholder="owner/repo" class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-primary transition">
-                <button id="loadRepoBtn" class="bg-primary hover:bg-blue-600 text-white px-3 py-1.5 rounded text-sm transition">
+                <input type="text" id="repoInput" placeholder="owner/repo" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition">
+                <button id="loadRepoBtn" class="bg-primary hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm transition shadow-lg shadow-blue-500/20">
                     <i class="fa-solid fa-download"></i>
                 </button>
             </div>
         </div>
 
         <!-- File Tree -->
-        <div class="flex-1 overflow-y-auto p-2" id="fileTree">
-            <div class="text-center text-gray-500 text-sm mt-10">
-                Load a repository to view files.
+        <div class="flex-1 overflow-y-auto p-2 scrollbar-thin" id="fileTree">
+            <div class="flex flex-col items-center justify-center h-full text-gray-500 text-sm space-y-2">
+                <i class="fa-brands fa-github text-4xl opacity-20"></i>
+                <p>Load a repo to start</p>
             </div>
         </div>
 
         <!-- Context Summary -->
-        <div class="p-3 border-t border-gray-800 bg-gray-900/50 text-xs text-gray-400 flex justify-between">
-            <span>Selected Files: <span id="selectedCount" class="text-white font-bold">0</span></span>
-            <button id="clearContextBtn" class="hover:text-red-400 transition">Clear</button>
+        <div class="p-4 border-t border-gray-800 bg-gray-900/30 text-xs text-gray-400 flex justify-between items-center mobile-safe-bottom">
+            <span>Selected: <span id="selectedCount" class="text-white font-bold">0</span></span>
+            <button id="clearContextBtn" class="text-red-400 hover:text-red-300 transition px-2 py-1 rounded hover:bg-red-500/10">Clear All</button>
         </div>
     </aside>
 
+    <!-- Overlay for Mobile Sidebar -->
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 hidden md:hidden transition-opacity opacity-0"></div>
+
     <!-- Main Chat Area -->
-    <main class="flex-1 flex flex-col relative">
+    <main class="flex-1 flex flex-col relative bg-darker w-full h-full">
         <!-- Chat History -->
-        <div id="chatContainer" class="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth pb-32">
+        <div id="chatContainer" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 scroll-smooth pb-24 md:pb-32 mobile-safe-bottom">
             <!-- Welcome Message -->
-            <div class="flex items-start space-x-4">
-                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-                    <i class="fa-solid fa-robot text-white"></i>
+            <div class="flex items-start space-x-3 md:space-x-4 animate-fade-in-up">
+                <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shrink-0">
+                    <i class="fa-solid fa-robot text-white text-sm md:text-base"></i>
                 </div>
-                <div class="glass rounded-2xl rounded-tl-none p-4 max-w-3xl shadow-xl">
-                    <p>Hello! I am your AI Coding Agent. Load a GitHub repository to get started, or ask me anything.</p>
+                <div class="glass rounded-2xl rounded-tl-none p-3 md:p-4 max-w-[85%] md:max-w-3xl shadow-xl text-sm md:text-base">
+                    <p>Hello! I am your AI Coding Agent. <br>Load a GitHub repository to verify code, or ask me anything.</p>
                 </div>
             </div>
         </div>
 
         <!-- Input Area -->
-        <div class="absolute bottom-0 w-full p-6 bg-gradient-to-t from-darker to-transparent">
-            <div class="max-w-4xl mx-auto relative glass rounded-xl shadow-2xl border border-gray-700/50">
-                <textarea id="promptInput" rows="3" placeholder="Describe your coding task or ask a question..." class="w-full bg-transparent border-none text-white p-4 focus:ring-0 resize-none placeholder-gray-500"></textarea>
-                <div class="flex justify-between items-center px-4 pb-3 border-t border-gray-700/30 pt-2">
-                    <div class="text-xs text-gray-500">
-                        <i class="fa-brands fa-markdown mr-1"></i> Markdown supported
+        <div class="absolute bottom-0 w-full p-2 md:p-6 bg-gradient-to-t from-darker via-darker to-transparent mobile-safe-bottom z-20">
+            <div class="max-w-4xl mx-auto relative glass rounded-2xl shadow-2xl border border-gray-700/50 backdrop-blur-md">
+                <textarea id="promptInput" rows="1" placeholder="Ask AI..." class="w-full bg-transparent border-none text-white p-3 md:p-4 focus:ring-0 resize-none placeholder-gray-500 text-sm md:text-base max-h-32 overflow-y-auto leading-relaxed"></textarea>
+                <div class="flex justify-between items-center px-3 pb-2 md:px-4 md:pb-3 border-t border-gray-700/30 pt-2">
+                    <div class="text-[10px] md:text-xs text-gray-500 flex items-center">
+                        <i class="fa-brands fa-markdown mr-1"></i> <span class="hidden md:inline">Markdown supported</span>
                     </div>
-                    <button id="sendBtn" class="bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white px-6 py-2 rounded-lg font-semibold shadow-lg transition transform hover:scale-105 flex items-center">
+                    <button id="sendBtn" class="bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white px-4 py-1.5 md:px-6 md:py-2 rounded-xl font-semibold shadow-lg shadow-blue-500/20 transition transform active:scale-95 flex items-center text-sm md:text-base">
                         <span>Send</span> <i class="fa-solid fa-paper-plane ml-2"></i>
                     </button>
                 </div>
@@ -108,30 +140,30 @@
     </main>
 
     <!-- Settings Modal -->
-    <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center">
-        <div class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-md p-6 shadow-2xl transform transition-all scale-95 opacity-0" id="settingsContent">
+    <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-md p-6 shadow-2xl transform transition-all scale-95 opacity-0" id="settingsContent">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-bold text-white">Settings</h2>
-                <button id="closeSettingsBtn" class="text-gray-400 hover:text-white transition">
+                <button id="closeSettingsBtn" class="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-800 transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-5">
                 <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-1">Ferdev AI API Key</label>
-                    <input type="password" id="apiKeyInput" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white focus:border-primary focus:outline-none transition">
-                    <p class="text-xs text-gray-600 mt-1">Required for AI functionality.</p>
+                    <label class="block text-sm font-medium text-gray-400 mb-1.5">Ferdev AI API Key</label>
+                    <input type="password" id="apiKeyInput" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition" placeholder="Enter API Key">
+                    <p class="text-xs text-gray-600 mt-1.5 flex items-center"><i class="fa-solid fa-circle-info mr-1"></i> Required for AI responses.</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-1">GitHub Token (Optional)</label>
-                    <input type="password" id="githubTokenInput" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white focus:border-primary focus:outline-none transition">
-                    <p class="text-xs text-gray-600 mt-1">Required for private repos or higher rate limits.</p>
+                    <label class="block text-sm font-medium text-gray-400 mb-1.5">GitHub Token (Optional)</label>
+                    <input type="password" id="githubTokenInput" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition" placeholder="ghp_...">
+                    <p class="text-xs text-gray-600 mt-1.5">For private repos & higher limits.</p>
                 </div>
             </div>
 
             <div class="mt-8 flex justify-end">
-                <button id="saveSettingsBtn" class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded transition shadow-lg">
+                <button id="saveSettingsBtn" class="w-full md:w-auto bg-primary hover:bg-blue-600 text-white px-6 py-2.5 rounded-lg transition shadow-lg font-medium">
                     Save Configuration
                 </button>
             </div>

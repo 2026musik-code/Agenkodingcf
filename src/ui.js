@@ -6,6 +6,8 @@ let currentRepo = { owner: '', repo: '' };
 const settingsModal = document.getElementById('settingsModal');
 const settingsContent = document.getElementById('settingsContent');
 const settingsBtn = document.getElementById('settingsBtn');
+const mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
+const desktopSettingsBtn = document.getElementById('desktopSettingsBtn');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 const apiKeyInput = document.getElementById('apiKeyInput');
@@ -21,6 +23,11 @@ const chatContainer = document.getElementById('chatContainer');
 const promptInput = document.getElementById('promptInput');
 const sendBtn = document.getElementById('sendBtn');
 
+const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+
 // Markdown Setup
 marked.setOptions({
     highlight: function(code, lang) {
@@ -29,6 +36,25 @@ marked.setOptions({
     },
     langPrefix: 'hljs language-'
 });
+
+// --- Mobile Sidebar Logic ---
+
+function toggleSidebar(show) {
+    if (show) {
+        sidebar.classList.remove('-translate-x-full');
+        sidebarOverlay.classList.remove('hidden');
+        setTimeout(() => sidebarOverlay.classList.remove('opacity-0'), 10);
+    } else {
+        sidebar.classList.add('-translate-x-full');
+        sidebarOverlay.classList.add('opacity-0');
+        setTimeout(() => sidebarOverlay.classList.add('hidden'), 300);
+    }
+}
+
+mobileMenuBtn?.addEventListener('click', () => toggleSidebar(true));
+closeSidebarBtn?.addEventListener('click', () => toggleSidebar(false));
+sidebarOverlay?.addEventListener('click', () => toggleSidebar(false));
+
 
 // --- Settings Logic ---
 
@@ -48,8 +74,11 @@ function toggleSettings(show) {
     }
 }
 
-settingsBtn.addEventListener('click', () => toggleSettings(true));
-closeSettingsBtn.addEventListener('click', () => toggleSettings(false));
+// Bind both desktop and mobile settings buttons if they exist
+settingsBtn?.addEventListener('click', () => toggleSettings(true));
+desktopSettingsBtn?.addEventListener('click', () => toggleSettings(true));
+mobileSettingsBtn?.addEventListener('click', () => toggleSettings(true));
+closeSettingsBtn?.addEventListener('click', () => toggleSettings(false));
 
 async function loadConfig() {
     try {
@@ -66,7 +95,10 @@ saveSettingsBtn.addEventListener('click', async () => {
     const ferdevApiKey = apiKeyInput.value;
     const githubToken = githubTokenInput.value;
 
-    saveSettingsBtn.textContent = 'Saving...';
+    const originalText = saveSettingsBtn.textContent;
+    saveSettingsBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    saveSettingsBtn.disabled = true;
+
     try {
         await fetch('/api/config', {
             method: 'POST',
@@ -78,7 +110,8 @@ saveSettingsBtn.addEventListener('click', async () => {
     } catch (e) {
         alert('Failed to save configuration');
     } finally {
-        saveSettingsBtn.textContent = 'Save Configuration';
+        saveSettingsBtn.textContent = originalText;
+        saveSettingsBtn.disabled = false;
     }
 });
 
@@ -93,8 +126,9 @@ loadRepoBtn.addEventListener('click', async () => {
         return;
     }
 
+    const originalHtml = loadRepoBtn.innerHTML;
     loadRepoBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    fileTree.innerHTML = '<div class="text-center text-gray-400 mt-4">Loading repository tree...</div>';
+    fileTree.innerHTML = '<div class="flex h-full items-center justify-center text-gray-400"><i class="fa-solid fa-circle-notch fa-spin text-2xl mr-3"></i> Loading...</div>';
 
     try {
         const res = await fetch('/api/github/tree', {
@@ -109,10 +143,16 @@ loadRepoBtn.addEventListener('click', async () => {
         currentRepo = { owner, repo };
         renderFileTree(data.tree);
         addMessage('system', `Loaded repository: ${owner}/${repo}`);
+
+        // On mobile, auto-close sidebar after load so user sees chat area
+        if (window.innerWidth < 768) {
+             toggleSidebar(false);
+        }
+
     } catch (e) {
-        fileTree.innerHTML = `<div class="text-red-400 text-center mt-4">Error: ${e.message}</div>`;
+        fileTree.innerHTML = `<div class="p-4 text-red-400 text-center text-sm">Error: ${e.message}</div>`;
     } finally {
-        loadRepoBtn.innerHTML = '<i class="fa-solid fa-download"></i>';
+        loadRepoBtn.innerHTML = originalHtml;
     }
 });
 
@@ -125,14 +165,14 @@ function renderFileTree(tree) {
     });
 
     const list = document.createElement('ul');
-    list.className = 'space-y-1 text-sm';
+    list.className = 'space-y-1 text-sm p-2';
 
     sorted.forEach(item => {
         const li = document.createElement('li');
-        li.className = 'cursor-pointer hover:bg-gray-800 rounded px-2 py-1 truncate transition flex items-center';
+        li.className = 'cursor-pointer hover:bg-gray-800/50 rounded-lg px-3 py-2 truncate transition flex items-center select-none active:bg-gray-700';
 
-        const icon = item.type === 'tree' ? '<i class="fa-regular fa-folder text-blue-400 mr-2"></i>' : '<i class="fa-regular fa-file text-gray-400 mr-2"></i>';
-        li.innerHTML = `${icon}<span>${item.path}</span>`;
+        const icon = item.type === 'tree' ? '<i class="fa-regular fa-folder text-blue-400 mr-2.5"></i>' : '<i class="fa-regular fa-file text-gray-400 mr-2.5"></i>';
+        li.innerHTML = `${icon}<span class="truncate">${item.path}</span>`;
 
         if (item.type === 'blob') { // File
             li.addEventListener('click', () => toggleFileSelection(item.path, li));
@@ -146,11 +186,12 @@ function renderFileTree(tree) {
 async function toggleFileSelection(path, element) {
     if (selectedFiles.has(path)) {
         selectedFiles.delete(path);
-        element.classList.remove('bg-gray-700', 'text-white');
+        element.classList.remove('bg-blue-600/20', 'text-blue-200', 'border-l-2', 'border-blue-500');
         element.classList.add('text-gray-200');
     } else {
         // Fetch content
-        element.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-primary mr-2"></i>Loading...';
+        const originalHtml = element.innerHTML;
+        element.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-primary mr-2"></i> Loading...';
         try {
             const res = await fetch('/api/github/file', {
                 method: 'POST',
@@ -161,13 +202,15 @@ async function toggleFileSelection(path, element) {
             const data = await res.json();
 
             selectedFiles.set(path, data.content);
-            element.classList.add('bg-gray-700', 'text-white');
+            element.classList.add('bg-blue-600/20', 'text-blue-200', 'border-l-2', 'border-blue-500');
             element.classList.remove('text-gray-200');
+
+            // Revert html but keep styles
+            element.innerHTML = `<i class="fa-regular fa-file text-blue-400 mr-2.5"></i><span class="truncate">${path}</span>`;
+
         } catch (e) {
             alert(e.message);
-        } finally {
-            // Restore icon
-            element.innerHTML = `<i class="fa-regular fa-file text-gray-400 mr-2"></i><span>${path}</span>`;
+            element.innerHTML = originalHtml; // Revert on error
         }
     }
     updateContextCount();
@@ -180,11 +223,8 @@ function updateContextCount() {
 clearContextBtn.addEventListener('click', () => {
     selectedFiles.clear();
     updateContextCount();
-    // Re-render tree to clear highlights (simplistic approach)
-    // Ideally we iterate DOM, but re-render is fine for now or just reload.
-    // Let's just remove classes from all LIs
     const lis = fileTree.querySelectorAll('li');
-    lis.forEach(li => li.classList.remove('bg-gray-700', 'text-white'));
+    lis.forEach(li => li.classList.remove('bg-blue-600/20', 'text-blue-200', 'border-l-2', 'border-blue-500'));
 });
 
 
@@ -192,24 +232,24 @@ clearContextBtn.addEventListener('click', () => {
 
 function addMessage(role, content) {
     const div = document.createElement('div');
-    div.className = 'flex items-start space-x-4 animate-fade-in-up';
+    div.className = 'flex items-start space-x-3 md:space-x-4 animate-fade-in-up mb-4';
 
     let icon = '';
     let bgClass = '';
 
     if (role === 'user') {
-        icon = '<div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center shadow-lg"><i class="fa-solid fa-user text-white"></i></div>';
+        icon = '<div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-700 flex items-center justify-center shadow-lg shrink-0"><i class="fa-solid fa-user text-white text-xs md:text-sm"></i></div>';
         bgClass = 'bg-gray-800 text-white border border-gray-700';
     } else if (role === 'system') {
-         icon = '<div class="w-10 h-10 rounded-full bg-yellow-600/20 flex items-center justify-center border border-yellow-600/50"><i class="fa-solid fa-info text-yellow-500"></i></div>';
+         icon = '<div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-yellow-600/20 flex items-center justify-center border border-yellow-600/50 shrink-0"><i class="fa-solid fa-info text-yellow-500 text-xs md:text-sm"></i></div>';
          bgClass = 'bg-yellow-900/10 border border-yellow-600/20 text-yellow-200';
     } else {
-        icon = '<div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg"><i class="fa-solid fa-robot text-white"></i></div>';
+        icon = '<div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shrink-0"><i class="fa-solid fa-robot text-white text-xs md:text-sm"></i></div>';
         bgClass = 'glass text-gray-100 shadow-xl';
     }
 
     const bubble = document.createElement('div');
-    bubble.className = `${bgClass} rounded-2xl p-4 max-w-3xl overflow-x-auto`;
+    bubble.className = `${bgClass} rounded-2xl p-3 md:p-4 max-w-[85%] md:max-w-3xl overflow-x-auto text-sm md:text-base leading-relaxed shadow-md`;
     if (role === 'user') bubble.classList.add('rounded-tr-none');
     else bubble.classList.add('rounded-tl-none');
 
@@ -244,17 +284,18 @@ async function sendMessage() {
 
     addMessage('user', message);
     promptInput.value = '';
+    // Reset textarea height if auto-expanding implemented later
 
     // Create loading message
     const loadingDiv = document.createElement('div');
     loadingDiv.id = 'loading-msg';
-    loadingDiv.className = 'flex items-start space-x-4 opacity-50';
+    loadingDiv.className = 'flex items-start space-x-3 md:space-x-4 opacity-70 mb-4 animate-pulse';
     loadingDiv.innerHTML = `
-        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-            <i class="fa-solid fa-robot text-white"></i>
+        <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-robot text-white text-xs md:text-sm"></i>
         </div>
-        <div class="glass rounded-2xl rounded-tl-none p-4">
-            <i class="fa-solid fa-circle-notch fa-spin"></i> Thinking...
+        <div class="glass rounded-2xl rounded-tl-none p-3 md:p-4 text-sm md:text-base">
+            <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Thinking...
         </div>
     `;
     chatContainer.appendChild(loadingDiv);
@@ -277,18 +318,12 @@ async function sendMessage() {
         if (!res.ok) {
             addMessage('system', `Error: ${data.error || 'Unknown error'}`);
         } else {
-            // Handle response format. If it's pure text or JSON with message field.
-            // Adjust based on actual API response.
-            // Assuming "message" or direct text if simple.
-            // If the API returns the gemini response structure, it might be nested.
-            // For now, let's dump the whole object if it's not clear, or try to find a text field.
-
             let reply = "No response text found.";
             if (typeof data === 'string') reply = data;
             else if (data.message) reply = data.message;
-            else if (data.result) reply = data.result; // Common wrapper
-            else if (data.candidates && data.candidates[0].content) reply = data.candidates[0].content.parts[0].text; // Google standard
-            else reply = "```json\n" + JSON.stringify(data, null, 2) + "\n```"; // Fallback debug
+            else if (data.result) reply = data.result;
+            else if (data.candidates && data.candidates[0].content) reply = data.candidates[0].content.parts[0].text;
+            else reply = "```json\n" + JSON.stringify(data, null, 2) + "\n```";
 
             addMessage('model', reply);
         }

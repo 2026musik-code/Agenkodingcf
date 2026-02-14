@@ -1,6 +1,8 @@
 import json
+import re
 
 def main():
+    # Read source files
     with open('src/index.ts', 'r') as f:
         ts_code = f.read()
 
@@ -10,17 +12,20 @@ def main():
     with open('src/ui.js', 'r') as f:
         js_code = f.read()
 
-    # Remove the placeholder export default app; at the end if I want to wrap it,
-    # but I can just append the routes and export at the end.
-    # My src/index.ts already has export default app;
-    # I should remove it and append the new routes and then export.
+    # Find the marker for Frontend Serving section
+    marker = "// --- Frontend Serving ---"
 
-    ts_code = ts_code.replace('export default app;', '')
+    if marker in ts_code:
+        # Keep everything before the marker
+        base_code = ts_code.split(marker)[0]
+    else:
+        # If marker not found, assume it's clean or append to end (but check for existing exports)
+        # Remove export default if it exists to re-add it at the end
+        base_code = ts_code.replace('export default app;', '')
 
-    # logic to append
-    new_code = f"""{ts_code}
-
-// --- Frontend Serving ---
+    # Construct the new content
+    new_code = f"""{base_code}
+{marker}
 
 const htmlContent = {json.dumps(html_code)};
 const jsContent = {json.dumps(js_code)};
@@ -34,7 +39,7 @@ export default app;
     with open('src/index.ts', 'w') as f:
         f.write(new_code)
 
-    print("Successfully injected frontend assets into src/index.ts")
+    print("Successfully injected frontend assets into src/index.ts (Overwriting previous injection)")
 
 if __name__ == "__main__":
     main()
