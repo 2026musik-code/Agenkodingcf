@@ -608,6 +608,32 @@ async function autoSaveFiles(content) {
         const lines = code.split('\n');
         if (lines.length > 0) {
             const firstLine = lines[0].trim();
+
+            // Check for deletion pattern: // delete-file: ...
+            const deleteMatch = firstLine.match(/(?:\/\/|#|<!--)\s*delete-file:\s*([^\s-]+)(?:\s*-->)?/i);
+
+            if (deleteMatch && deleteMatch[1]) {
+                const filename = deleteMatch[1].trim();
+                addMessage('system', `<i class="fa-solid fa-spinner fa-spin"></i> Auto-deleting <b>${filename}</b>...`);
+                try {
+                    const res = await fetch('/api/github/file', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            owner: currentRepo.owner,
+                            repo: currentRepo.repo,
+                            path: filename
+                        })
+                    });
+                    if (!res.ok) throw new Error((await res.json()).error);
+                    addMessage('system', `<i class="fa-solid fa-trash text-red-400"></i> Successfully deleted <b>${filename}</b>`);
+                    loadRepository(currentRepo.owner, currentRepo.repo);
+                } catch (e) {
+                    addMessage('system', `<i class="fa-solid fa-triangle-exclamation text-red-400"></i> Failed to delete <b>${filename}</b>: ${e.message}`);
+                }
+                continue; // Skip save logic
+            }
+
             // Check for filename pattern in comments: // filename: ..., # filename: ..., <!-- filename: ... -->
             const filenameMatch = firstLine.match(/(?:\/\/|#|<!--)\s*filename:\s*([^\s-]+)(?:\s*-->)?/i);
 
