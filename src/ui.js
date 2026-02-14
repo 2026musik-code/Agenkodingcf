@@ -645,6 +645,20 @@ async function autoSaveFiles(content) {
                 addMessage('system', `<i class="fa-solid fa-spinner fa-spin"></i> Auto-saving <b>${filename}</b>...`);
 
                 try {
+                    // Check if file exists to get SHA
+                    let sha = null;
+                    try {
+                        const checkRes = await fetch('/api/github/file', {
+                            method: 'POST', // Use POST to read as defined in backend
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ owner: currentRepo.owner, repo: currentRepo.repo, path: filename })
+                        });
+                        if (checkRes.ok) {
+                            const checkData = await checkRes.json();
+                            sha = checkData.sha;
+                        }
+                    } catch (ignore) { /* File likely doesn't exist */ }
+
                     const res = await fetch('/api/github/file', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -653,7 +667,8 @@ async function autoSaveFiles(content) {
                             repo: currentRepo.repo,
                             path: filename,
                             content: cleanCode,
-                            message: `Auto-generated ${filename} by AI Agent`
+                            message: `Auto-generated ${filename} by AI Agent`,
+                            sha: sha // Include SHA if updating
                         })
                     });
 
