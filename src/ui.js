@@ -57,15 +57,83 @@ const tabHistoryContent = document.getElementById('tabHistoryContent');
 const historyList = document.getElementById('historyList');
 const newChatBtn = document.getElementById('newChatBtn');
 
-marked.setOptions({
-    highlight: function(code, lang) {
-        if (lang && hljs.getLanguage(lang)) {
-            return hljs.highlight(code, { language: lang }).value;
-        }
-        return hljs.highlightAuto(code).value;
-    },
-    langPrefix: 'hljs language-'
-});
+// --- Markdown Renderer with "Save to Repo" Button ---
+const renderer = new marked.Renderer();
+const originalCodeRenderer = renderer.code;
+
+renderer.code = function(code, language) {
+    // Generate a unique ID for this block
+    const blockId = 'code-' + Math.random().toString(36).substr(2, 9);
+
+    // Highlight code
+    let highlighted = code;
+    if (language && hljs.getLanguage(language)) {
+        highlighted = hljs.highlight(code, { language: language }).value;
+    } else {
+        highlighted = hljs.highlightAuto(code).value;
+    }
+
+    // Return the HTML with a relative wrapper and a button
+    return `
+        <div class="relative group my-4">
+            <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition duration-200 z-10 flex space-x-2">
+                 <button onclick="copyCode('${blockId}')" class="bg-gray-700 hover:bg-gray-600 text-white text-xs px-2 py-1 rounded shadow-md border border-gray-600 flex items-center" title="Copy to Clipboard">
+                    <i class="fa-regular fa-copy mr-1"></i> Copy
+                </button>
+                <button onclick="saveCodeToRepo('${blockId}')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-2 py-1 rounded shadow-md border border-blue-500 flex items-center" title="Save to Repository">
+                    <i class="fa-brands fa-github mr-1"></i> Save
+                </button>
+            </div>
+            <pre><code id="${blockId}" class="hljs language-${language || 'plaintext'} p-4 rounded-lg block overflow-x-auto text-sm bg-[#282c34]">${highlighted}</code></pre>
+            <textarea id="${blockId}-raw" class="hidden">${code}</textarea>
+        </div>
+    `;
+};
+
+marked.use({ renderer });
+
+// Global functions for code block buttons
+window.copyCode = function(id) {
+    const raw = document.getElementById(id + '-raw').value;
+    navigator.clipboard.writeText(raw).then(() => {
+        addMessage('system', 'Code copied to clipboard!');
+    });
+};
+
+window.saveCodeToRepo = async function(id) {
+    const raw = document.getElementById(id + '-raw').value;
+    const filename = prompt("Enter the path to save this file in your repository (e.g., src/index.js):");
+
+    if (!filename) return;
+
+    if (!currentRepo.owner || !currentRepo.repo) {
+        alert("Please select a repository first!");
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/github/file', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                owner: currentRepo.owner,
+                repo: currentRepo.repo,
+                path: filename,
+                content: raw,
+                message: `Create/Update ${filename} from AI Chat`
+            })
+        });
+
+        if (!res.ok) throw new Error((await res.json()).error);
+
+        addMessage('system', `Successfully saved <b>${filename}</b> to ${currentRepo.owner}/${currentRepo.repo}`);
+        // Optionally refresh file tree if needed
+        loadRepository(currentRepo.owner, currentRepo.repo);
+
+    } catch (e) {
+        alert(`Error saving file: ${e.message}`);
+    }
+};
 
 // --- Mobile Sidebar ---
 function toggleSidebar(show) {
