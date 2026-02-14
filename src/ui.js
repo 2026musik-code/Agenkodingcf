@@ -1,6 +1,7 @@
 // State
 let selectedFiles = new Map(); // path -> content
 let currentRepo = { owner: '', repo: '' };
+let currentFile = { path: '', sha: '' }; // Track selected file for editing
 
 // DOM Elements
 const settingsModal = document.getElementById('settingsModal');
@@ -10,7 +11,7 @@ const mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
 const desktopSettingsBtn = document.getElementById('desktopSettingsBtn');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-// const apiKeyInput = document.getElementById('apiKeyInput'); // REMOVED
+const githubUsernameInput = document.getElementById('githubUsernameInput');
 const githubTokenInput = document.getElementById('githubTokenInput');
 const proxyUrlInput = document.getElementById('proxyUrlInput');
 
@@ -28,6 +29,23 @@ const mobileMenuBtn = document.getElementById('mobileMenuBtn');
 const closeSidebarBtn = document.getElementById('closeSidebarBtn');
 const sidebar = document.getElementById('sidebar');
 const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+// New Elements
+const modeManualBtn = document.getElementById('modeManualBtn');
+const modeListBtn = document.getElementById('modeListBtn');
+const manualRepoInputGroup = document.getElementById('manualRepoInputGroup');
+const repoListGroup = document.getElementById('repoListGroup');
+const repoSelect = document.getElementById('repoSelect');
+const refreshReposBtn = document.getElementById('refreshReposBtn');
+const createRepoBtn = document.getElementById('createRepoBtn');
+const createRepoModal = document.getElementById('createRepoModal');
+const confirmCreateRepoBtn = document.getElementById('confirmCreateRepoBtn');
+const cancelCreateRepoBtn = document.getElementById('cancelCreateRepoBtn');
+const newRepoName = document.getElementById('newRepoName');
+const newRepoDesc = document.getElementById('newRepoDesc');
+const newRepoPrivate = document.getElementById('newRepoPrivate');
+const fileToolbar = document.getElementById('fileToolbar');
+const saveFileBtn = document.getElementById('saveFileBtn');
 
 // Markdown Setup
 marked.setOptions({
@@ -75,7 +93,6 @@ function toggleSettings(show) {
     }
 }
 
-// Bind both desktop and mobile settings buttons if they exist
 settingsBtn?.addEventListener('click', () => toggleSettings(true));
 desktopSettingsBtn?.addEventListener('click', () => toggleSettings(true));
 mobileSettingsBtn?.addEventListener('click', () => toggleSettings(true));
@@ -85,7 +102,7 @@ async function loadConfig() {
     try {
         const res = await fetch('/api/config');
         const data = await res.json();
-        // if (data.ferdevApiKey) apiKeyInput.value = data.ferdevApiKey; // REMOVED
+        if (data.githubUsername) githubUsernameInput.value = data.githubUsername;
         if (data.githubToken) githubTokenInput.value = data.githubToken;
         if (data.proxyUrl) proxyUrlInput.value = data.proxyUrl;
     } catch (e) {
@@ -94,7 +111,7 @@ async function loadConfig() {
 }
 
 saveSettingsBtn.addEventListener('click', async () => {
-    // const ferdevApiKey = apiKeyInput.value; // REMOVED
+    const githubUsername = githubUsernameInput.value;
     const githubToken = githubTokenInput.value;
     const proxyUrl = proxyUrlInput.value;
 
@@ -106,10 +123,13 @@ saveSettingsBtn.addEventListener('click', async () => {
         await fetch('/api/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ githubToken, proxyUrl })
+            body: JSON.stringify({ githubUsername, githubToken, proxyUrl })
         });
         toggleSettings(false);
         addMessage('system', 'Configuration saved successfully.');
+        if (modeListBtn.classList.contains('bg-gray-700')) {
+            fetchMyRepos(); // Refresh list if needed
+        }
     } catch (e) {
         alert('Failed to save configuration');
     } finally {
@@ -118,9 +138,56 @@ saveSettingsBtn.addEventListener('click', async () => {
     }
 });
 
+// --- Connection Mode Logic ---
+
+modeManualBtn.addEventListener('click', () => {
+    modeManualBtn.className = 'flex-1 py-1 text-xs rounded-md bg-gray-700 text-white shadow-sm transition';
+    modeListBtn.className = 'flex-1 py-1 text-xs rounded-md text-gray-400 hover:text-white transition';
+    manualRepoInputGroup.classList.remove('hidden');
+    repoListGroup.classList.add('hidden');
+});
+
+modeListBtn.addEventListener('click', () => {
+    modeListBtn.className = 'flex-1 py-1 text-xs rounded-md bg-gray-700 text-white shadow-sm transition';
+    modeManualBtn.className = 'flex-1 py-1 text-xs rounded-md text-gray-400 hover:text-white transition';
+    manualRepoInputGroup.classList.add('hidden');
+    repoListGroup.classList.remove('hidden');
+    fetchMyRepos();
+});
+
+async function fetchMyRepos() {
+    repoSelect.innerHTML = '<option>Loading...</option>';
+    try {
+        const res = await fetch('/api/github/list');
+        if (!res.ok) throw new Error('Failed to fetch repos (Check Token)');
+        const data = await res.json();
+
+        repoSelect.innerHTML = '<option value="">Select a repository...</option>';
+        data.repos.forEach(repo => {
+            const opt = document.createElement('option');
+            opt.value = repo.full_name;
+            opt.textContent = `${repo.full_name} ${repo.private ? '(🔒)' : ''}`;
+            repoSelect.appendChild(opt);
+        });
+    } catch (e) {
+        repoSelect.innerHTML = `<option>Error: ${e.message}</option>`;
+    }
+}
+
+refreshReposBtn.addEventListener('click', fetchMyRepos);
+
+repoSelect.addEventListener('change', () => {
+    const val = repoSelect.value;
+    if (val) {
+        const [owner, repo] = val.split('/');
+        currentRepo = { owner, repo };
+        loadRepository(owner, repo);
+    }
+});
+
 // --- GitHub Logic ---
 
-loadRepoBtn.addEventListener('click', async () => {
+loadRepoBtn.addEventListener('click', () => {
     const input = repoInput.value.trim();
     if (!input) return;
     const [owner, repo] = input.split('/');
@@ -128,9 +195,10 @@ loadRepoBtn.addEventListener('click', async () => {
         alert('Invalid repository format. Use owner/repo');
         return;
     }
+    loadRepository(owner, repo);
+});
 
-    const originalHtml = loadRepoBtn.innerHTML;
-    loadRepoBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+async function loadRepository(owner, repo) {
     fileTree.innerHTML = '<div class="flex h-full items-center justify-center text-gray-400"><i class="fa-solid fa-circle-notch fa-spin text-2xl mr-3"></i> Loading...</div>';
 
     try {
@@ -147,21 +215,15 @@ loadRepoBtn.addEventListener('click', async () => {
         renderFileTree(data.tree);
         addMessage('system', `Loaded repository: ${owner}/${repo}`);
 
-        // On mobile, auto-close sidebar after load so user sees chat area
-        if (window.innerWidth < 768) {
-             toggleSidebar(false);
-        }
+        if (window.innerWidth < 768) toggleSidebar(false);
 
     } catch (e) {
         fileTree.innerHTML = `<div class="p-4 text-red-400 text-center text-sm">Error: ${e.message}</div>`;
-    } finally {
-        loadRepoBtn.innerHTML = originalHtml;
     }
-});
+}
 
 function renderFileTree(tree) {
     fileTree.innerHTML = '';
-    // Sort: folders first, then files
     const sorted = tree.sort((a, b) => {
         if (a.type === b.type) return a.path.localeCompare(b.path);
         return a.type === 'tree' ? -1 : 1;
@@ -177,8 +239,8 @@ function renderFileTree(tree) {
         const icon = item.type === 'tree' ? '<i class="fa-regular fa-folder text-blue-400 mr-2.5"></i>' : '<i class="fa-regular fa-file text-gray-400 mr-2.5"></i>';
         li.innerHTML = `${icon}<span class="truncate">${item.path}</span>`;
 
-        if (item.type === 'blob') { // File
-            li.addEventListener('click', () => toggleFileSelection(item.path, li));
+        if (item.type === 'blob') {
+            li.addEventListener('click', () => selectFile(item.path, li));
         }
 
         list.appendChild(li);
@@ -186,37 +248,41 @@ function renderFileTree(tree) {
     fileTree.appendChild(list);
 }
 
-async function toggleFileSelection(path, element) {
-    if (selectedFiles.has(path)) {
-        selectedFiles.delete(path);
-        element.classList.remove('bg-blue-600/20', 'text-blue-200', 'border-l-2', 'border-blue-500');
-        element.classList.add('text-gray-200');
-    } else {
-        // Fetch content
-        const originalHtml = element.innerHTML;
-        element.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-primary mr-2"></i> Loading...';
-        try {
-            const res = await fetch('/api/github/file', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ owner: currentRepo.owner, repo: currentRepo.repo, path })
-            });
-            if (!res.ok) throw new Error('Failed to fetch file');
-            const data = await res.json();
+// Select file for context OR editing
+async function selectFile(path, element) {
+    // If we click again, maybe toggle selection for context?
+    // Current logic: click = view content + select for context
 
-            selectedFiles.set(path, data.content);
-            element.classList.add('bg-blue-600/20', 'text-blue-200', 'border-l-2', 'border-blue-500');
-            element.classList.remove('text-gray-200');
+    // UI Feedback
+    const allLis = fileTree.querySelectorAll('li');
+    allLis.forEach(li => li.classList.remove('bg-blue-600/20', 'text-blue-200', 'border-l-2', 'border-blue-500'));
+    element.classList.add('bg-blue-600/20', 'text-blue-200', 'border-l-2', 'border-blue-500');
 
-            // Revert html but keep styles
-            element.innerHTML = `<i class="fa-regular fa-file text-blue-400 mr-2.5"></i><span class="truncate">${path}</span>`;
+    // Fetch content
+    try {
+        const res = await fetch('/api/github/file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ owner: currentRepo.owner, repo: currentRepo.repo, path })
+        });
+        if (!res.ok) throw new Error('Failed to fetch file');
+        const data = await res.json();
 
-        } catch (e) {
-            alert(e.message);
-            element.innerHTML = originalHtml; // Revert on error
-        }
+        // Update State
+        selectedFiles.set(path, data.content);
+        currentFile = { path, sha: data.sha };
+        updateContextCount();
+
+        // Show in Chat/Editor (Simulated)
+        // ideally we show a code editor. For now, we put it in context.
+        // Let's show a "File Toolbar" to Save.
+        fileToolbar.classList.remove('hidden');
+
+        addMessage('system', `Selected file: ${path}`);
+
+    } catch (e) {
+        alert(e.message);
     }
-    updateContextCount();
 }
 
 function updateContextCount() {
@@ -225,9 +291,91 @@ function updateContextCount() {
 
 clearContextBtn.addEventListener('click', () => {
     selectedFiles.clear();
+    currentFile = { path: '', sha: '' };
+    fileToolbar.classList.add('hidden');
     updateContextCount();
     const lis = fileTree.querySelectorAll('li');
     lis.forEach(li => li.classList.remove('bg-blue-600/20', 'text-blue-200', 'border-l-2', 'border-blue-500'));
+});
+
+// --- Save File Logic ---
+
+saveFileBtn.addEventListener('click', async () => {
+    if (!currentFile.path) return;
+
+    const content = prompt("Confirm content to save (Edit here for simple changes):", selectedFiles.get(currentFile.path));
+    if (content === null) return; // Cancelled
+
+    saveFileBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+    try {
+        const res = await fetch('/api/github/file', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                owner: currentRepo.owner,
+                repo: currentRepo.repo,
+                path: currentFile.path,
+                content: content,
+                sha: currentFile.sha,
+                message: `Update ${currentFile.path} via AI Agent`
+            })
+        });
+
+        if (!res.ok) throw new Error((await res.json()).error);
+
+        const data = await res.json();
+        // Update local state
+        selectedFiles.set(currentFile.path, content);
+        // Update SHA for next save (vital!)
+        // However, standard API response for update content might just return commit info.
+        // Ideally we re-fetch to get new SHA or API returns it.
+        // Our backend returns { success: true, content: ... } but maybe not SHA.
+        // Simpler: reload file.
+        addMessage('system', `File saved successfully: ${currentFile.path}`);
+
+    } catch (e) {
+        alert(`Error saving file: ${e.message}`);
+    } finally {
+        saveFileBtn.innerHTML = '<i class="fa-solid fa-floppy-disk mr-2"></i> Save Changes';
+    }
+});
+
+// --- Create Repo Logic ---
+
+createRepoBtn.addEventListener('click', () => createRepoModal.classList.remove('hidden'));
+cancelCreateRepoBtn.addEventListener('click', () => createRepoModal.classList.add('hidden'));
+
+confirmCreateRepoBtn.addEventListener('click', async () => {
+    const name = newRepoName.value.trim();
+    if (!name) return alert('Repository name required');
+
+    confirmCreateRepoBtn.disabled = true;
+    confirmCreateRepoBtn.textContent = 'Creating...';
+
+    try {
+        const res = await fetch('/api/github/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name,
+                description: newRepoDesc.value,
+                private: newRepoPrivate.checked
+            })
+        });
+
+        if (!res.ok) throw new Error((await res.json()).error);
+        const data = await res.json();
+
+        createRepoModal.classList.add('hidden');
+        addMessage('system', `Repository created: ${data.repo}`);
+        fetchMyRepos(); // Refresh list
+
+    } catch (e) {
+        alert(`Error creating repo: ${e.message}`);
+    } finally {
+        confirmCreateRepoBtn.disabled = false;
+        confirmCreateRepoBtn.textContent = 'Create';
+    }
 });
 
 
@@ -258,7 +406,6 @@ function addMessage(role, content) {
 
     if (role === 'model' || role === 'system') {
         bubble.innerHTML = marked.parse(content);
-        // Highlight code blocks
         bubble.querySelectorAll('pre code').forEach((block) => {
             highlight.highlightElement(block);
         });
@@ -287,9 +434,7 @@ async function sendMessage() {
 
     addMessage('user', message);
     promptInput.value = '';
-    // Reset textarea height if auto-expanding implemented later
 
-    // Create loading message
     const loadingDiv = document.createElement('div');
     loadingDiv.id = 'loading-msg';
     loadingDiv.className = 'flex items-start space-x-3 md:space-x-4 opacity-70 mb-4 animate-pulse';
@@ -314,20 +459,12 @@ async function sendMessage() {
         });
 
         const data = await res.json();
-
-        // Remove loading
         chatContainer.removeChild(loadingDiv);
 
         if (!res.ok) {
             addMessage('system', `Error: ${data.error || 'Unknown error'}`);
         } else {
-            let reply = "No response text found.";
-            if (typeof data === 'string') reply = data;
-            else if (data.message) reply = data.message;
-            else if (data.result) reply = data.result;
-            else if (data.candidates && data.candidates[0].content) reply = data.candidates[0].content.parts[0].text;
-            else reply = "```json\n" + JSON.stringify(data, null, 2) + "\n```";
-
+            let reply = data.result || "No response";
             addMessage('model', reply);
         }
 

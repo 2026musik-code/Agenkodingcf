@@ -24,8 +24,6 @@
         /* Mobile Specifics */
         .mobile-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
         .mobile-safe-top { padding-top: env(safe-area-inset-top); }
-
-        /* App-like transitions */
         .page-transition { transition: transform 0.3s ease-in-out; }
     </style>
     <script>
@@ -79,14 +77,35 @@
             </button>
         </div>
 
-        <!-- Repo Loader -->
-        <div class="p-4 space-y-2">
-            <label class="text-xs text-gray-500 uppercase font-semibold">Repository</label>
-            <div class="flex space-x-2">
+        <!-- Repo Management -->
+        <div class="p-4 space-y-3">
+            <!-- Connection Mode Tabs -->
+            <div class="flex space-x-2 bg-gray-900/50 p-1 rounded-lg">
+                <button id="modeManualBtn" class="flex-1 py-1 text-xs rounded-md bg-gray-700 text-white shadow-sm transition">Manual</button>
+                <button id="modeListBtn" class="flex-1 py-1 text-xs rounded-md text-gray-400 hover:text-white transition">My Repos</button>
+            </div>
+
+            <!-- Manual Input -->
+            <div id="manualRepoInputGroup" class="flex space-x-2">
                 <input type="text" id="repoInput" placeholder="owner/repo" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition">
-                <button id="loadRepoBtn" class="bg-primary hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm transition shadow-lg shadow-blue-500/20">
+                <button id="loadRepoBtn" class="bg-primary hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm transition shadow-lg">
                     <i class="fa-solid fa-download"></i>
                 </button>
+            </div>
+
+            <!-- Repo List Dropdown (Hidden initially) -->
+            <div id="repoListGroup" class="hidden space-y-2">
+                <select id="repoSelect" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition">
+                    <option value="">Select a repository...</option>
+                </select>
+                <div class="flex space-x-2">
+                    <button id="refreshReposBtn" class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-2 rounded-lg text-xs transition">
+                        <i class="fa-solid fa-sync"></i> Refresh
+                    </button>
+                    <button id="createRepoBtn" class="flex-1 bg-green-600 hover:bg-green-500 text-white px-2 py-2 rounded-lg text-xs transition">
+                        <i class="fa-solid fa-plus"></i> New
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -108,8 +127,16 @@
     <!-- Overlay for Mobile Sidebar -->
     <div id="sidebarOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 hidden md:hidden transition-opacity opacity-0"></div>
 
-    <!-- Main Chat Area -->
+    <!-- Main Content Area -->
     <main class="flex-1 flex flex-col relative bg-darker w-full h-full">
+
+        <!-- File Actions Toolbar (Hidden unless file selected) -->
+        <div id="fileToolbar" class="hidden absolute top-4 right-4 z-20 flex space-x-2">
+            <button id="saveFileBtn" class="bg-blue-600/90 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs shadow-lg backdrop-blur-sm flex items-center transition">
+                <i class="fa-solid fa-floppy-disk mr-2"></i> Save Changes
+            </button>
+        </div>
+
         <!-- Chat History -->
         <div id="chatContainer" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 scroll-smooth pb-24 md:pb-32 mobile-safe-bottom">
             <!-- Welcome Message -->
@@ -118,7 +145,7 @@
                     <i class="fa-solid fa-robot text-white text-sm md:text-base"></i>
                 </div>
                 <div class="glass rounded-2xl rounded-tl-none p-3 md:p-4 max-w-[85%] md:max-w-3xl shadow-xl text-sm md:text-base">
-                    <p>Hello! I am your AI Coding Agent. <br>Load a GitHub repository to verify code, or ask me anything.</p>
+                    <p>Hello! I am your AI Coding Agent. <br>Login in Settings to manage your GitHub repositories.</p>
                 </div>
             </div>
         </div>
@@ -126,7 +153,7 @@
         <!-- Input Area -->
         <div class="absolute bottom-0 w-full p-2 md:p-6 bg-gradient-to-t from-darker via-darker to-transparent mobile-safe-bottom z-20">
             <div class="max-w-4xl mx-auto relative glass rounded-2xl shadow-2xl border border-gray-700/50 backdrop-blur-md">
-                <textarea id="promptInput" rows="1" placeholder="Ask AI..." class="w-full bg-transparent border-none text-white p-3 md:p-4 focus:ring-0 resize-none placeholder-gray-500 text-sm md:text-base max-h-32 overflow-y-auto leading-relaxed"></textarea>
+                <textarea id="promptInput" rows="1" placeholder="Ask AI to generate code..." class="w-full bg-transparent border-none text-white p-3 md:p-4 focus:ring-0 resize-none placeholder-gray-500 text-sm md:text-base max-h-32 overflow-y-auto leading-relaxed"></textarea>
                 <div class="flex justify-between items-center px-3 pb-2 md:px-4 md:pb-3 border-t border-gray-700/30 pt-2">
                     <div class="text-[10px] md:text-xs text-gray-500 flex items-center">
                         <i class="fa-brands fa-markdown mr-1"></i> <span class="hidden md:inline">Markdown supported</span>
@@ -150,16 +177,18 @@
             </div>
 
             <div class="space-y-5">
-                <!-- Removed API Key Input -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-1.5">GitHub Token (Optional)</label>
-                    <input type="password" id="githubTokenInput" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition" placeholder="ghp_...">
-                    <p class="text-xs text-gray-600 mt-1.5">For private repos & higher limits.</p>
+                    <label class="block text-sm font-medium text-gray-400 mb-1.5">GitHub Username</label>
+                    <input type="text" id="githubUsernameInput" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition" placeholder="e.g. ferdev">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-1.5">Custom Proxy URL (Optional)</label>
-                    <input type="text" id="proxyUrlInput" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition" placeholder="e.g. https://my-indo-proxy.com/?url=">
-                    <p class="text-xs text-gray-600 mt-1.5">Enter a proxy that forwards requests (with ?url=) to access from Indonesia.</p>
+                    <label class="block text-sm font-medium text-gray-400 mb-1.5">GitHub Token</label>
+                    <input type="password" id="githubTokenInput" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition" placeholder="ghp_...">
+                    <p class="text-xs text-gray-600 mt-1.5">Required for accessing private repos and writing changes.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1.5">Custom Proxy URL</label>
+                    <input type="text" id="proxyUrlInput" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition" placeholder="Optional">
                 </div>
             </div>
 
@@ -167,6 +196,25 @@
                 <button id="saveSettingsBtn" class="w-full md:w-auto bg-primary hover:bg-blue-600 text-white px-6 py-2.5 rounded-lg transition shadow-lg font-medium">
                     Save Configuration
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Repo Modal -->
+    <div id="createRepoModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <h2 class="text-xl font-bold text-white mb-4">Create Repository</h2>
+            <div class="space-y-4">
+                <input type="text" id="newRepoName" placeholder="Repository Name" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white">
+                <input type="text" id="newRepoDesc" placeholder="Description" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white">
+                <div class="flex items-center">
+                    <input type="checkbox" id="newRepoPrivate" class="mr-2">
+                    <label for="newRepoPrivate" class="text-gray-300 text-sm">Private Repository</label>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button id="cancelCreateRepoBtn" class="text-gray-400 hover:text-white px-4 py-2">Cancel</button>
+                <button id="confirmCreateRepoBtn" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg">Create</button>
             </div>
         </div>
     </div>
