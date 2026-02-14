@@ -3,6 +3,8 @@ let selectedFiles = new Map();
 let currentRepo = { owner: '', repo: '' };
 let currentRepoFiles = [];
 let currentFile = { path: '', sha: '' };
+let currentSessionId = Date.now().toString(); // Simple ID generation
+let chatHistory = []; // Local mirror of messages
 
 // DOM Elements
 const settingsModal = document.getElementById('settingsModal');
@@ -47,10 +49,20 @@ const newRepoPrivate = document.getElementById('newRepoPrivate');
 const fileToolbar = document.getElementById('fileToolbar');
 const saveFileBtn = document.getElementById('saveFileBtn');
 
+// Tabs
+const tabRepoBtn = document.getElementById('tabRepoBtn');
+const tabHistoryBtn = document.getElementById('tabHistoryBtn');
+const tabRepoContent = document.getElementById('tabRepoContent');
+const tabHistoryContent = document.getElementById('tabHistoryContent');
+const historyList = document.getElementById('historyList');
+const newChatBtn = document.getElementById('newChatBtn');
+
 marked.setOptions({
     highlight: function(code, lang) {
-        const language = highlight.getLanguage(lang) ? lang : 'plaintext';
-        return highlight.highlight(code, { language }).value;
+        if (lang && hljs.getLanguage(lang)) {
+            return hljs.highlight(code, { language: lang }).value;
+        }
+        return hljs.highlightAuto(code).value;
     },
     langPrefix: 'hljs language-'
 });
@@ -61,6 +73,10 @@ function toggleSidebar(show) {
         sidebar.classList.remove('-translate-x-full');
         sidebarOverlay.classList.remove('hidden');
         setTimeout(() => sidebarOverlay.classList.remove('opacity-0'), 10);
+        // Refresh history when opening sidebar if needed
+        if (!tabHistoryContent.classList.contains('hidden')) {
+            loadHistoryList();
+        }
     } else {
         sidebar.classList.add('-translate-x-full');
         sidebarOverlay.classList.add('opacity-0');
@@ -70,6 +86,148 @@ function toggleSidebar(show) {
 mobileMenuBtn?.addEventListener('click', () => toggleSidebar(true));
 closeSidebarBtn?.addEventListener('click', () => toggleSidebar(false));
 sidebarOverlay?.addEventListener('click', () => toggleSidebar(false));
+
+// --- Tabs Logic ---
+tabRepoBtn.addEventListener('click', () => {
+    tabRepoBtn.className = 'flex-1 py-3 text-sm text-blue-400 border-b-2 border-blue-500 font-medium transition';
+    tabHistoryBtn.className = 'flex-1 py-3 text-sm text-gray-400 hover:text-white transition';
+    tabRepoContent.classList.remove('hidden');
+    tabHistoryContent.classList.add('hidden');
+});
+
+tabHistoryBtn.addEventListener('click', () => {
+    tabHistoryBtn.className = 'flex-1 py-3 text-sm text-blue-400 border-b-2 border-blue-500 font-medium transition';
+    tabRepoBtn.className = 'flex-1 py-3 text-sm text-gray-400 hover:text-white transition';
+    tabHistoryContent.classList.remove('hidden');
+    tabRepoContent.classList.add('hidden');
+    loadHistoryList();
+});
+
+// --- History Logic ---
+
+async function loadHistoryList() {
+    historyList.innerHTML = '<div class="text-center text-gray-500 mt-4 text-xs"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+    try {
+        const res = await fetch('/api/history/list');
+        const data = await res.json();
+
+        historyList.innerHTML = '';
+        if (!data.chats || data.chats.length === 0) {
+            historyList.innerHTML = '<div class="text-center text-gray-500 mt-4 text-xs">No history found.</div>';
+            return;
+        }
+
+        data.chats.forEach(chat => {
+            const btn = document.createElement('button');
+            const date = new Date(chat.updated_at).toLocaleDateString();
+            // Highlight current
+            const isCurrent = chat.id === currentSessionId;
+            const bgClass = isCurrent ? 'bg-blue-600/20 border-l-2 border-blue-500 text-blue-200' : 'hover:bg-gray-800/50 text-gray-300';
+
+            btn.className = `w-full text-left px-3 py-2.5 rounded-lg text-xs transition mb-1 ${bgClass} truncate flex justify-between group`;
+            btn.innerHTML = `
+                <span class="truncate flex-1">Chat ${chat.id.substring(0, 8)}...</span>
+                <span class="text-gray-600 text-[10px] ml-2">${date}</span>
+                <i class="fa-solid fa-trash text-gray-600 hover:text-red-400 ml-2 opacity-0 group-hover:opacity-100 transition" onclick="deleteChat(event, '${chat.id}')"></i>
+            `;
+            btn.onclick = (e) => {
+                 // Prevent triggering if trash clicked (handled by event bubbling check or separate handler,
+                 // but innerHTML onclick is easier here given constraints)
+                 if (e.target.classList.contains('fa-trash')) return;
+                 loadChatSession(chat.id);
+            };
+            historyList.appendChild(btn);
+        });
+
+    } catch (e) {
+        historyList.innerHTML = `<div class="text-center text-red-400 mt-4 text-xs">Error loading history</div>`;
+    }
+}
+
+async function loadChatSession(id) {
+    chatContainer.innerHTML = ''; // Clear UI
+    chatHistory = []; // Clear local state
+    currentSessionId = id;
+
+    // Add loading indicator
+    const loader = document.createElement('div');
+    loader.className = 'text-center text-gray-500 mt-10';
+    loader.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading chat...';
+    chatContainer.appendChild(loader);
+
+    try {
+        const res = await fetch(`/api/history/${id}`);
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+
+        chatContainer.removeChild(loader);
+
+        if (data.messages && Array.isArray(data.messages)) {
+            chatHistory = data.messages;
+            chatHistory.forEach(msg => addMessageToUI(msg.role, msg.content));
+        } else {
+             addMessage('system', 'Chat history empty or invalid.');
+        }
+
+        // On mobile, close sidebar
+        if (window.innerWidth < 768) toggleSidebar(false);
+
+    } catch (e) {
+        chatContainer.innerHTML = '';
+        addMessage('system', `Error loading chat: ${e.message}`);
+    }
+}
+
+async function deleteChat(e, id) {
+    e.stopPropagation();
+    if (!confirm('Delete this chat?')) return;
+
+    try {
+        await fetch(`/api/history/${id}`, { method: 'DELETE' });
+        loadHistoryList(); // Refresh list
+        if (id === currentSessionId) {
+            startNewChat();
+        }
+    } catch (e) {
+        alert('Failed to delete');
+    }
+}
+
+function startNewChat() {
+    currentSessionId = Date.now().toString();
+    chatHistory = [];
+    chatContainer.innerHTML = '';
+
+    // Add Welcome Message
+    const welcomeHTML = `
+            <div class="flex items-start space-x-3 md:space-x-4 animate-fade-in-up">
+                <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shrink-0">
+                    <i class="fa-solid fa-robot text-white text-sm md:text-base"></i>
+                </div>
+                <div class="glass rounded-2xl rounded-tl-none p-3 md:p-4 max-w-[85%] md:max-w-3xl shadow-xl text-sm md:text-base">
+                    <p>Hello! I am your AI Coding Agent. <br>Login in Settings to manage your GitHub repositories.</p>
+                </div>
+            </div>`;
+    chatContainer.innerHTML = welcomeHTML;
+
+    if (window.innerWidth < 768) toggleSidebar(false);
+}
+
+newChatBtn.addEventListener('click', startNewChat);
+
+async function saveCurrentChat() {
+    if (chatHistory.length === 0) return;
+    try {
+        await fetch(`/api/history/${currentSessionId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: chatHistory, updated_at: new Date().toISOString() })
+        });
+    } catch (e) {
+        console.error('Auto-save failed', e);
+    }
+}
+
 
 // --- Settings ---
 function toggleSettings(show) {
@@ -353,6 +511,15 @@ confirmCreateRepoBtn.addEventListener('click', async () => {
 // --- Chat Logic (UI Improved) ---
 
 function addMessage(role, content) {
+    // Update State
+    chatHistory.push({ role, content });
+    addMessageToUI(role, content);
+    if (role !== 'system') {
+        saveCurrentChat();
+    }
+}
+
+function addMessageToUI(role, content) {
     const div = document.createElement('div');
     // Align user right, others left
     if (role === 'user') {
@@ -382,7 +549,7 @@ function addMessage(role, content) {
     if (role === 'model' || role === 'system') {
         bubble.innerHTML = marked.parse(content);
         bubble.querySelectorAll('pre code').forEach((block) => {
-            highlight.highlightElement(block);
+            hljs.highlightElement(block);
         });
     } else {
         bubble.textContent = content;

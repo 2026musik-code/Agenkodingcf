@@ -77,44 +77,69 @@
             </button>
         </div>
 
-        <!-- Repo Management -->
-        <div class="p-4 space-y-3">
-            <!-- Connection Mode Tabs -->
-            <div class="flex space-x-2 bg-gray-900/50 p-1 rounded-lg">
-                <button id="modeManualBtn" class="flex-1 py-1 text-xs rounded-md bg-gray-700 text-white shadow-sm transition">Manual</button>
-                <button id="modeListBtn" class="flex-1 py-1 text-xs rounded-md text-gray-400 hover:text-white transition">My Repos</button>
+        <!-- Tab Navigation -->
+        <div class="flex border-b border-gray-800 bg-gray-900/20">
+            <button id="tabRepoBtn" class="flex-1 py-3 text-sm text-blue-400 border-b-2 border-blue-500 font-medium transition">
+                <i class="fa-brands fa-github mr-2"></i>Repo
+            </button>
+            <button id="tabHistoryBtn" class="flex-1 py-3 text-sm text-gray-400 hover:text-white transition">
+                <i class="fa-solid fa-clock-rotate-left mr-2"></i>History
+            </button>
+        </div>
+
+        <!-- Repo Tab Content -->
+        <div id="tabRepoContent" class="flex-1 flex flex-col h-full overflow-hidden">
+            <!-- Repo Management -->
+            <div class="p-4 space-y-3 shrink-0">
+                <!-- Connection Mode Tabs -->
+                <div class="flex space-x-2 bg-gray-900/50 p-1 rounded-lg">
+                    <button id="modeManualBtn" class="flex-1 py-1 text-xs rounded-md bg-gray-700 text-white shadow-sm transition">Manual</button>
+                    <button id="modeListBtn" class="flex-1 py-1 text-xs rounded-md text-gray-400 hover:text-white transition">My Repos</button>
+                </div>
+
+                <!-- Manual Input -->
+                <div id="manualRepoInputGroup" class="flex space-x-2">
+                    <input type="text" id="repoInput" placeholder="owner/repo" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition">
+                    <button id="loadRepoBtn" class="bg-primary hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm transition shadow-lg">
+                        <i class="fa-solid fa-download"></i>
+                    </button>
+                </div>
+
+                <!-- Repo List Dropdown (Hidden initially) -->
+                <div id="repoListGroup" class="hidden space-y-2">
+                    <select id="repoSelect" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition">
+                        <option value="">Select a repository...</option>
+                    </select>
+                    <div class="flex space-x-2">
+                        <button id="refreshReposBtn" class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-2 rounded-lg text-xs transition">
+                            <i class="fa-solid fa-sync"></i> Refresh
+                        </button>
+                        <button id="createRepoBtn" class="flex-1 bg-green-600 hover:bg-green-500 text-white px-2 py-2 rounded-lg text-xs transition">
+                            <i class="fa-solid fa-plus"></i> New
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <!-- Manual Input -->
-            <div id="manualRepoInputGroup" class="flex space-x-2">
-                <input type="text" id="repoInput" placeholder="owner/repo" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition">
-                <button id="loadRepoBtn" class="bg-primary hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm transition shadow-lg">
-                    <i class="fa-solid fa-download"></i>
-                </button>
-            </div>
-
-            <!-- Repo List Dropdown (Hidden initially) -->
-            <div id="repoListGroup" class="hidden space-y-2">
-                <select id="repoSelect" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary transition">
-                    <option value="">Select a repository...</option>
-                </select>
-                <div class="flex space-x-2">
-                    <button id="refreshReposBtn" class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-2 rounded-lg text-xs transition">
-                        <i class="fa-solid fa-sync"></i> Refresh
-                    </button>
-                    <button id="createRepoBtn" class="flex-1 bg-green-600 hover:bg-green-500 text-white px-2 py-2 rounded-lg text-xs transition">
-                        <i class="fa-solid fa-plus"></i> New
-                    </button>
+            <!-- File Tree -->
+            <div class="flex-1 overflow-y-auto p-2 scrollbar-thin" id="fileTree">
+                <div class="flex flex-col items-center justify-center h-full text-gray-500 text-sm space-y-2">
+                    <i class="fa-brands fa-github text-4xl opacity-20"></i>
+                    <p>Load a repo to start</p>
                 </div>
             </div>
         </div>
 
-        <!-- File Tree -->
-        <div class="flex-1 overflow-y-auto p-2 scrollbar-thin" id="fileTree">
-            <div class="flex flex-col items-center justify-center h-full text-gray-500 text-sm space-y-2">
-                <i class="fa-brands fa-github text-4xl opacity-20"></i>
-                <p>Load a repo to start</p>
-            </div>
+        <!-- History Tab Content (Hidden) -->
+        <div id="tabHistoryContent" class="hidden flex-1 flex-col h-full overflow-hidden">
+             <div class="p-4 shrink-0">
+                <button id="newChatBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg text-sm shadow-md transition flex items-center justify-center">
+                    <i class="fa-solid fa-plus mr-2"></i> New Chat
+                </button>
+             </div>
+             <div id="historyList" class="flex-1 overflow-y-auto p-2 scrollbar-thin space-y-1">
+                 <!-- History items will go here -->
+             </div>
         </div>
 
         <!-- Context Summary -->
