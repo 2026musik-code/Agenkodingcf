@@ -125,15 +125,15 @@ app.post('/api/chat', async (c) => {
     }
 
     // Construct Prompt
-    let prompt = "You are an expert AI Coding Agent. Analyze the following code context and answer the user's request.\\n\\n";
+    let prompt = "You are an expert AI Coding Agent. Analyze the following code context and answer the user's request.\n\n";
 
     if (contextFiles && Array.isArray(contextFiles)) {
-      prompt += "--- CONTEXT FILES ---\\n";
+      prompt += "--- CONTEXT FILES ---\n";
       for (const file of contextFiles) {
-        prompt += `File: ${file.path}\\n`;
-        prompt += `Content:\\n\`\`\`\\n${file.content}\\n\`\`\`\\n\\n`;
+        prompt += `File: ${file.path}\n`;
+        prompt += `Content:\n\`\`\`\n${file.content}\n\`\`\`\n\n`;
       }
-      prompt += "--- END CONTEXT ---\\n\\n";
+      prompt += "--- END CONTEXT ---\n\n";
     }
 
     prompt += `User Request: ${message}`;
@@ -152,25 +152,24 @@ app.post('/api/chat', async (c) => {
         targetUrl = proxyUrl.trim() + encodeURIComponent(targetUrl);
     }
 
-    // Headers logic
+    // Headers logic - MIMIC AGENTUBE REPO EXACTLY
     const headers: any = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Referer': 'https://google.com',
+        'Accept': '*/*'
     };
 
-    if (!proxyUrl) {
-        headers['Referer'] = 'https://ferdev.my.id/';
-        headers['Origin'] = 'https://ferdev.my.id/';
-    }
+    // Only use custom headers if NOT using a proxy (or proxy supports them)
+    // If proxyUrl is set, we still send them, hoping the proxy forwards them.
 
     const response = await fetch(targetUrl, { headers });
 
-    // Improved Error Handling: Try to read the JSON error message even if status is not OK
     const responseText = await response.text();
     let data;
     try {
         data = JSON.parse(responseText);
     } catch (e) {
-        data = { message: responseText }; // Fallback to raw text
+        data = { message: responseText };
     }
 
     if (!response.ok) {
@@ -180,7 +179,6 @@ app.post('/api/chat', async (c) => {
         }, response.status);
     }
 
-    // If success: false is returned in 200 OK (some APIs do this)
     if (data.success === false) {
          return c.json({
             error: `AI API returned failure: ${data.message}`,
