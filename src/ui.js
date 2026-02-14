@@ -3,7 +3,8 @@ let selectedFiles = new Map();
 let currentRepo = { owner: '', repo: '' };
 let currentRepoFiles = [];
 let currentFile = { path: '', sha: '' };
-let currentSessionId = Date.now().toString(); // Simple ID generation
+let currentSessionId = Date.now().toString();
+    localStorage.setItem('lastSessionId', currentSessionId); // Simple ID generation
 let chatHistory = []; // Local mirror of messages
 
 // DOM Elements
@@ -216,6 +217,7 @@ async function loadChatSession(id) {
     chatContainer.innerHTML = ''; // Clear UI
     chatHistory = []; // Clear local state
     currentSessionId = id;
+    localStorage.setItem('lastSessionId', id);
 
     // Add loading indicator
     const loader = document.createElement('div');
@@ -263,6 +265,7 @@ async function deleteChat(e, id) {
 
 function startNewChat() {
     currentSessionId = Date.now().toString();
+    localStorage.setItem('lastSessionId', currentSessionId);
     chatHistory = [];
     chatContainer.innerHTML = '';
 
@@ -400,6 +403,7 @@ repoSelect.addEventListener('change', () => {
     if (val) {
         const [owner, repo] = val.split('/');
         currentRepo = { owner, repo };
+        localStorage.setItem('lastRepo', JSON.stringify(currentRepo));
         loadRepository(owner, repo);
     }
 });
@@ -429,6 +433,7 @@ async function loadRepository(owner, repo) {
 
         const data = await res.json();
         currentRepo = { owner, repo };
+        localStorage.setItem('lastRepo', JSON.stringify(currentRepo));
         currentRepoFiles = data.tree || [];
         renderFileTree(data.tree);
         addMessage('system', `Loaded repository: ${owner}/${repo}`);
@@ -700,4 +705,29 @@ async function sendMessage() {
 }
 
 // Initial Load
-loadConfig();
+(async () => {
+    await loadConfig();
+
+    // Restore Repository
+    const lastRepo = localStorage.getItem('lastRepo');
+    if (lastRepo) {
+        try {
+            const { owner, repo } = JSON.parse(lastRepo);
+            if (owner && repo) {
+                currentRepo = { owner, repo };
+                repoInput.value = `${owner}/${repo}`;
+                await loadRepository(owner, repo);
+            }
+        } catch (e) {
+            console.error('Failed to restore repo', e);
+        }
+    }
+
+    // Restore Chat Session
+    const lastSessionId = localStorage.getItem('lastSessionId');
+    if (lastSessionId) {
+        await loadChatSession(lastSessionId);
+    } else {
+        // Only start new chat if no history to load
+    }
+})();
