@@ -125,15 +125,15 @@ app.post('/api/chat', async (c) => {
     }
 
     // Construct Prompt
-    let prompt = "You are an expert AI Coding Agent. Analyze the following code context and answer the user's request.\n\n";
+    let prompt = "You are an expert AI Coding Agent. Analyze the following code context and answer the user's request.\\n\\n";
 
     if (contextFiles && Array.isArray(contextFiles)) {
-      prompt += "--- CONTEXT FILES ---\n";
+      prompt += "--- CONTEXT FILES ---\\n";
       for (const file of contextFiles) {
-        prompt += `File: ${file.path}\n`;
-        prompt += `Content:\n\`\`\`\n${file.content}\n\`\`\`\n\n`;
+        prompt += `File: ${file.path}\\n`;
+        prompt += `Content:\\n\`\`\`\\n${file.content}\\n\`\`\`\\n\\n`;
       }
-      prompt += "--- END CONTEXT ---\n\n";
+      prompt += "--- END CONTEXT ---\\n\\n";
     }
 
     prompt += `User Request: ${message}`;
