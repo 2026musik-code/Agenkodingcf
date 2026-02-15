@@ -221,15 +221,17 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-300 mb-1.5">Model Name</label>
-                            <input type="text" id="geminiModelInput" list="geminiModels" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition" placeholder="Select or type model...">
+                            <input type="text" id="geminiModelInput" list="geminiModels" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition" placeholder="gemini-3.0-flash">
                             <datalist id="geminiModels">
+                                <option value="gemini-3.0-flash">
+                                <option value="gemini-3.0-pro">
+                                <option value="gemini-2.5-flash">
+                                <option value="gemini-2.5-pro">
                                 <option value="gemini-2.0-flash-exp">
                                 <option value="gemini-1.5-pro">
                                 <option value="gemini-1.5-flash">
-                                <option value="gemini-1.5-flash-8b">
-                                <option value="gemini-3-flash-preview">
                             </datalist>
-                            <p class="text-xs text-gray-500 mt-1.5">Select a model or type a custom ID (e.g. gemini-2.0-flash-exp)</p>
+                            <p class="text-xs text-gray-500 mt-1.5">Select a model or type a custom ID (e.g. gemini-3.0-flash)</p>
                         </div>
                     </div>
                 </div>
