@@ -92,7 +92,7 @@ app.get('/api/config', async (c) => {
         proxyUrl: config.proxyUrl || '',
         aiProvider: config.aiProvider || 'magma',
         geminiApiKey: config.geminiApiKey ? '********' : '',
-        geminiModel: config.geminiModel || 'gemini-1.5-flash'
+        geminiModel: config.geminiModel || 'gemini-2.0-flash-exp'
     });
   } catch (e) {
     return c.json({ error: 'Failed to fetch config' }, 500);
@@ -102,12 +102,14 @@ app.get('/api/config', async (c) => {
 app.post('/api/config', async (c) => {
   try {
     const body = await c.req.json();
+    const existingConfig: any = await getConfig(c.env);
+
     const newConfig = {
-        githubToken: body.githubToken,
+        githubToken: body.githubToken === '********' ? existingConfig.githubToken : body.githubToken,
         githubUsername: body.githubUsername,
         proxyUrl: body.proxyUrl,
         aiProvider: body.aiProvider,
-        geminiApiKey: body.geminiApiKey,
+        geminiApiKey: body.geminiApiKey === '********' ? existingConfig.geminiApiKey : body.geminiApiKey,
         geminiModel: body.geminiModel
     };
     await c.env.vpsai.put('config.json', JSON.stringify(newConfig));
