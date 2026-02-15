@@ -214,10 +214,16 @@
                         </select>
                     </div>
 
-                    <div id="geminiKeyGroup" class="hidden">
-                        <label class="block text-sm font-medium text-gray-300 mb-1.5">Gemini API Key</label>
-                        <input type="password" id="geminiKeyInput" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition" placeholder="AIz...">
-                        <p class="text-xs text-gray-500 mt-1.5">Get key from Google AI Studio.</p>
+                    <div id="geminiKeyGroup" class="hidden space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1.5">Gemini API Key</label>
+                            <input type="password" id="geminiKeyInput" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition" placeholder="AIz...">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1.5">Model Name</label>
+                            <input type="text" id="geminiModelInput" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition" placeholder="gemini-2.0-flash-exp">
+                            <p class="text-xs text-gray-500 mt-1.5">e.g. gemini-1.5-flash, gemini-2.0-flash-exp</p>
+                        </div>
                     </div>
                 </div>
 

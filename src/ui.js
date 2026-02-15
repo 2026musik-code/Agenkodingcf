@@ -21,6 +21,7 @@ const proxyUrlInput = document.getElementById('proxyUrlInput');
 const aiProviderSelect = document.getElementById('aiProviderSelect');
 const geminiKeyGroup = document.getElementById('geminiKeyGroup');
 const geminiKeyInput = document.getElementById('geminiKeyInput');
+const geminiModelInput = document.getElementById('geminiModelInput');
 
 const repoInput = document.getElementById('repoInput');
 const loadRepoBtn = document.getElementById('loadRepoBtn');
@@ -347,6 +348,7 @@ async function loadConfig() {
             if (data.aiProvider === 'gemini') geminiKeyGroup.classList.remove('hidden');
         }
         if (data.geminiApiKey) geminiKeyInput.value = data.geminiApiKey;
+        if (data.geminiModel) geminiModelInput.value = data.geminiModel;
 
     } catch (e) {
         console.error('Failed to load config', e);
@@ -359,6 +361,7 @@ saveSettingsBtn.addEventListener('click', async () => {
     const proxyUrl = proxyUrlInput.value;
     const aiProvider = aiProviderSelect.value;
     const geminiApiKey = geminiKeyInput.value;
+    const geminiModel = geminiModelInput.value;
 
     const originalText = saveSettingsBtn.textContent;
     saveSettingsBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
@@ -373,7 +376,8 @@ saveSettingsBtn.addEventListener('click', async () => {
                 githubToken,
                 proxyUrl,
                 aiProvider,
-                geminiApiKey
+                geminiApiKey,
+                geminiModel
             })
         });
         toggleSettings(false);
