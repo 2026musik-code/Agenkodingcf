@@ -18,6 +18,9 @@ const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 const githubUsernameInput = document.getElementById('githubUsernameInput');
 const githubTokenInput = document.getElementById('githubTokenInput');
 const proxyUrlInput = document.getElementById('proxyUrlInput');
+const aiProviderSelect = document.getElementById('aiProviderSelect');
+const geminiKeyGroup = document.getElementById('geminiKeyGroup');
+const geminiKeyInput = document.getElementById('geminiKeyInput');
 
 const repoInput = document.getElementById('repoInput');
 const loadRepoBtn = document.getElementById('loadRepoBtn');
@@ -322,6 +325,15 @@ desktopSettingsBtn?.addEventListener('click', () => toggleSettings(true));
 mobileSettingsBtn?.addEventListener('click', () => toggleSettings(true));
 closeSettingsBtn?.addEventListener('click', () => toggleSettings(false));
 
+// --- AI Settings Logic ---
+aiProviderSelect.addEventListener('change', () => {
+    if (aiProviderSelect.value === 'gemini') {
+        geminiKeyGroup.classList.remove('hidden');
+    } else {
+        geminiKeyGroup.classList.add('hidden');
+    }
+});
+
 async function loadConfig() {
     try {
         const res = await fetch('/api/config');
@@ -329,6 +341,13 @@ async function loadConfig() {
         if (data.githubUsername) githubUsernameInput.value = data.githubUsername;
         if (data.githubToken) githubTokenInput.value = data.githubToken;
         if (data.proxyUrl) proxyUrlInput.value = data.proxyUrl;
+
+        if (data.aiProvider) {
+            aiProviderSelect.value = data.aiProvider;
+            if (data.aiProvider === 'gemini') geminiKeyGroup.classList.remove('hidden');
+        }
+        if (data.geminiApiKey) geminiKeyInput.value = data.geminiApiKey;
+
     } catch (e) {
         console.error('Failed to load config', e);
     }
@@ -338,6 +357,8 @@ saveSettingsBtn.addEventListener('click', async () => {
     const githubUsername = githubUsernameInput.value;
     const githubToken = githubTokenInput.value;
     const proxyUrl = proxyUrlInput.value;
+    const aiProvider = aiProviderSelect.value;
+    const geminiApiKey = geminiKeyInput.value;
 
     const originalText = saveSettingsBtn.textContent;
     saveSettingsBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
@@ -347,7 +368,13 @@ saveSettingsBtn.addEventListener('click', async () => {
         await fetch('/api/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ githubUsername, githubToken, proxyUrl })
+            body: JSON.stringify({
+                githubUsername,
+                githubToken,
+                proxyUrl,
+                aiProvider,
+                geminiApiKey
+            })
         });
         toggleSettings(false);
         addMessage('system', 'Configuration saved successfully.');

@@ -202,6 +202,26 @@
             </div>
 
             <div class="space-y-5">
+                <!-- AI Provider Section -->
+                <div class="p-3 bg-gray-800/50 rounded-xl border border-gray-700/50">
+                    <label class="block text-xs font-bold text-blue-400 uppercase tracking-wider mb-3">AI Configuration</label>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-300 mb-1.5">AI Provider</label>
+                        <select id="aiProviderSelect" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition">
+                            <option value="magma">Magma (Free / GPT-5)</option>
+                            <option value="gemini">Google Gemini</option>
+                        </select>
+                    </div>
+
+                    <div id="geminiKeyGroup" class="hidden">
+                        <label class="block text-sm font-medium text-gray-300 mb-1.5">Gemini API Key</label>
+                        <input type="password" id="geminiKeyInput" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition" placeholder="AIz...">
+                        <p class="text-xs text-gray-500 mt-1.5">Get key from Google AI Studio.</p>
+                    </div>
+                </div>
+
+                <!-- GitHub Section -->
                 <div>
                     <label class="block text-sm font-medium text-gray-400 mb-1.5">GitHub Username</label>
                     <input type="text" id="githubUsernameInput" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition" placeholder="e.g. ferdev">
