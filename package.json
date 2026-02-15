@@ -2,8 +2,9 @@
   "name": "ai-agent-coding",
   "version": "1.0.0",
   "scripts": {
-    "dev": "wrangler dev src/index.ts",
-    "deploy": "wrangler deploy --minify src/index.ts"
+    "build": "python3 build_worker.py",
+    "dev": "npm run build && wrangler dev src/index.ts",
+    "deploy": "npm run build && wrangler deploy --minify src/index.ts"
   },
   "dependencies": {
     "hono": "^4.0.0"
